@@ -383,3 +383,8 @@ vite@^5.0.0:
     rollup "^4.20.0"
   optionalDependencies:
     fsevents "~2.3.3"
+
+web-demuxer@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/web-demuxer/-/web-demuxer-4.0.0.tgz#36a825742da71c14084d857c572be650c81e9b84"
+  integrity sha512-QFsKe8SNjP6MDtAw2lWfyVmX2wXIpDUT+9p2KHXJb5OPWdhVbjBHcV06tDMXzuU1T6Y1P9TRm9bkeVXEwy0dVw==
