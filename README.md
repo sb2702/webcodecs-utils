@@ -1,6 +1,6 @@
 # webcodecs-utils
 
-Utility functions for working with the WebCodecs API, extracted from [WebCodecs Fundamentals](https://webcodecsfundamentals.com).
+Utility functions for working with the WebCodecs API, extracted from [WebCodecs Fundamentals](https://webcodecsfundamentals.org).
 
 ## Installation
 
@@ -197,5 +197,5 @@ MIT
 
 ## Related
 
-- [WebCodecs Fundamentals](https://webcodecsfundamentals.com) - Comprehensive WebCodecs guide
+- [WebCodecs Fundamentals](https://webcodecsfundamentals.org) - Comprehensive WebCodecs guide
 - [MediaBunny](https://mediabunny.dev/) - Full-featured WebCodecs library

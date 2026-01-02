@@ -2,6 +2,11 @@
   "name": "webcodecs-utils",
   "version": "0.1.0",
   "description": "Utility functions for working with WebCodecs API",
+  "homepage": "https://webcodecsfundamentals.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sb2702/webcodecs-utils.git"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
