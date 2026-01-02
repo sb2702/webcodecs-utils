@@ -101,8 +101,9 @@ export async function demuxVideo(file: File): Promise<{chunks: EncodedVideoChunk
    
    const config: VideoDecoderConfig= {
        codec: videoTrack.codec_string,
-       sampleRate: audioTrack.sample_rate,
-       numberOfChannels: audioTrack.channels
+       codedWidth: videoTrack.width,
+       codedHeight: videoTrack.height,
+       description: videoTrack.extradata,
    }
 
    return {
