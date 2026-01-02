@@ -1,7 +1,7 @@
 
 
 
-export class GPUDrawImage {
+export class GPUFrameRenderer {
 
     canvas: HTMLCanvasElement | OffscreenCanvas;
     mode: 'webgpu' | 'bitmap' | null;

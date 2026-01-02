@@ -1,11 +1,12 @@
-import MP4Box, {
-  MP4File,
-  MP4Info,
-  MP4MediaTrack,
-  MP4ArrayBuffer,
-  MP4Sample,
-  DataStream,
-} from "mp4box";
+// @ts-ignore - mp4box has no proper default export in v2.3.0
+import MP4Box from "mp4box";
+
+// Type aliases for mp4box (which doesn't export proper TypeScript types)
+type MP4File = any;
+type MP4Info = any;
+type MP4MediaTrack = any;
+type MP4ArrayBuffer = ArrayBuffer & { fileStart: number };
+type MP4Sample = any;
 
 // Types
 export interface AudioTrackData {
@@ -52,10 +53,11 @@ const DURATION_BUFFER = 0.1; // Prevent reading beyond actual duration
     for (const entry of trak.mdia.minf.stbl.stsd.entries) {
       const box = entry.avcC || entry.hvcC || entry.vpcC || entry.av1C;
       if (box) {
-        const stream = new DataStream(
+        const DataStreamClass = (MP4Box as any).DataStream;
+        const stream = new DataStreamClass(
           undefined,
           0,
-          DataStream.BIG_ENDIAN
+          DataStreamClass.BIG_ENDIAN
         );
         box.write(stream);
         // Skip 8-byte box header (4 bytes size + 4 bytes type)
@@ -232,7 +234,7 @@ function extractEncodedSegment(
       }
   
       // Set up sample extraction callback
-      mp4.onSamples = (id: number, _user: unknown, samples: MP4Sample[]) => {
+      mp4.onSamples = (_id: number, _user: unknown, samples: MP4Sample[]) => {
         for (const sample of samples) {
           const sampleTime = sample.cts / sample.timescale;
   
