@@ -334,7 +334,7 @@ class MP3Decoder {
 
             // Create AudioData
             const timestamp = (offset / sampleRate) * 1e6; // microseconds
-            const duration = (chunkSize / sampleRate) * 1e6; // microseconds
+    
 
             const audioData = new AudioData({
                 format: 'f32',

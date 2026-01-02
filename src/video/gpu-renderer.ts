@@ -311,12 +311,14 @@ export class GPUFrameRenderer {
         entries.push({
           binding: 1,
           resource: {
+            //@ts-expect-error
             buffer: this.uniformBuffer!,
           },
         });
       } else {
         entries.push({
           binding: 1,
+          //@ts-expect-error
           resource: this.sampler!,
         });
       }
