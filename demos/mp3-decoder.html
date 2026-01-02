@@ -138,7 +138,12 @@
         const arrayBuffer = await file.arrayBuffer();
 
         // Decode MP3 to samples
-        const result = await decoder.decodeMP3ToSamples(arrayBuffer);
+        const result = await decoder.toSamples(arrayBuffer);
+
+
+        const audioData = await decoder.toAudioData(arrayBuffer);
+
+      
         decodedSamples = result;
 
         // Display results

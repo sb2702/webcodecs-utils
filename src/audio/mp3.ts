@@ -149,7 +149,7 @@ class MP3Decoder {
      * @param mp3Buffer - The MP3 data as ArrayBuffer
      * @returns Promise<{channels: Float32Array[], sampleRate: number, numberOfChannels: number}>
      */
-    async decodeMP3ToSamples(mp3Buffer: ArrayBuffer): Promise<{
+    async toSamples(mp3Buffer: ArrayBuffer): Promise<{
         channels: Float32Array[], 
         sampleRate: number, 
         numberOfChannels: number
@@ -187,6 +187,76 @@ class MP3Decoder {
         }
     }
 
+
+    /**
+     * Decode MP3 to AudioData objects.
+     * Internally calls decodeMP3ToSamples and converts the Float32Array channels to AudioData.
+     *
+     * @param mp3Buffer - The MP3 data as ArrayBuffer
+     * @returns Promise<AudioData[]> - Array of AudioData objects
+     *
+     * @example
+     * ```typescript
+     * const decoder = new MP3Decoder();
+     * await decoder.initialize();
+     * const mp3Buffer = await file.arrayBuffer();
+     * const audioDataArray = await decoder.decode(mp3Buffer);
+     *
+     * // Use with AudioEncoder or other WebCodecs APIs
+     * for (const audioData of audioDataArray) {
+     *   encoder.encode(audioData);
+     *   audioData.close();
+     * }
+     * ```
+     */
+    async toAudioData(mp3Buffer: ArrayBuffer): Promise<AudioData[]> {
+        // First decode to raw samples
+        const { channels, sampleRate, numberOfChannels } = await this.toSamples(mp3Buffer);
+
+        // Use fixed chunk size of 1024 samples per AudioData
+        const samplesPerChunk = 1024;
+
+        const totalSamples = channels[0].length;
+        const audioDataArray: AudioData[] = [];
+
+        console.log("Samples", totalSamples)
+
+        // Split channels into AudioData chunks
+        for (let offset = 0; offset < totalSamples; offset += samplesPerChunk) {
+            const remainingSamples = totalSamples - offset;
+            const chunkSize = Math.min(samplesPerChunk, remainingSamples);
+
+            // Extract chunk from each channel
+            const chunkChannels: Float32Array[] = channels.map(channel =>
+                channel.slice(offset, offset + chunkSize)
+            );
+
+            // Interleave channels for AudioData
+            const interleavedData = new Float32Array(chunkSize * numberOfChannels);
+            for (let i = 0; i < chunkSize; i++) {
+                for (let ch = 0; ch < numberOfChannels; ch++) {
+                    interleavedData[i * numberOfChannels + ch] = chunkChannels[ch][i];
+                }
+            }
+
+            // Create AudioData
+            const timestamp = (offset / sampleRate) * 1e6; // microseconds
+            const duration = (chunkSize / sampleRate) * 1e6; // microseconds
+
+            const audioData = new AudioData({
+                format: 'f32',
+                sampleRate,
+                numberOfFrames: chunkSize,
+                numberOfChannels,
+                timestamp: Math.round(timestamp),
+                data: interleavedData
+            });
+
+            audioDataArray.push(audioData);
+        }
+
+        return audioDataArray;
+    }
 
     /**
      * Clean up decoder resources
