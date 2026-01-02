@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>extractChannels Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .control-group {
+      margin: 20px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    input[type="file"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status {
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .output {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>extractChannels Demo</h1>
+  <p>Extract and de-interleave audio channels from AudioData.</p>
+
+  <div class="control-group">
+    <label>Select Video/Audio File</label>
+    <input type="file" id="fileInput" accept="video/*,audio/*">
+  </div>
+
+  <div class="status" id="status">Select a file to begin</div>
+  <div class="output" id="output"></div>
+
+  <script type="module">
+    import { extractChannels } from '../src/index.ts';
+
+    const fileInput = document.getElementById('fileInput');
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      await processAudio(file);
+    });
+
+    async function processAudio(file) {
+      status.textContent = 'Processing audio...';
+      output.textContent = '';
+
+      // TODO: Implement audio decoding and channel extraction
+      // This will be populated with demo code
+
+      status.textContent = 'Ready - implement demo code here';
+    }
+  </script>
+</body>
+</html>

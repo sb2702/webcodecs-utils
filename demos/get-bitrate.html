@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>getBitrate Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .control-group {
+      margin: 20px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    .result {
+      margin: 30px 0;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      font-size: 18px;
+    }
+    .result strong {
+      color: #2196f3;
+    }
+  </style>
+</head>
+<body>
+  <h1>getBitrate Demo</h1>
+  <p>Calculate optimal bitrate for video encoding based on resolution, framerate, and quality.</p>
+
+  <div class="control-group">
+    <label>Width (pixels)</label>
+    <input type="number" id="width" value="1920" min="1">
+  </div>
+
+  <div class="control-group">
+    <label>Height (pixels)</label>
+    <input type="number" id="height" value="1080" min="1">
+  </div>
+
+  <div class="control-group">
+    <label>Framerate (fps)</label>
+    <input type="number" id="fps" value="30" min="1">
+  </div>
+
+  <div class="control-group">
+    <label>Quality</label>
+    <select id="quality">
+      <option value="low">Low</option>
+      <option value="good" selected>Good</option>
+      <option value="high">High</option>
+      <option value="very-high">Very High</option>
+    </select>
+  </div>
+
+  <div class="result">
+    Bitrate: <strong id="result">-</strong>
+  </div>
+
+  <script type="module">
+    import { getBitrate } from '../src/index.ts';
+
+    function calculate() {
+      const width = parseInt(document.getElementById('width').value);
+      const height = parseInt(document.getElementById('height').value);
+      const fps = parseInt(document.getElementById('fps').value);
+      const quality = document.getElementById('quality').value;
+
+      const bitrate = getBitrate(width, height, fps, quality);
+      const mbps = (bitrate / 1_000_000).toFixed(2);
+
+      document.getElementById('result').textContent = `${mbps} Mbps (${bitrate.toLocaleString()} bps)`;
+    }
+
+    // Add event listeners
+    document.getElementById('width').addEventListener('input', calculate);
+    document.getElementById('height').addEventListener('input', calculate);
+    document.getElementById('fps').addEventListener('input', calculate);
+    document.getElementById('quality').addEventListener('change', calculate);
+
+    // Initial calculation
+    calculate();
+  </script>
+</body>
+</html>
