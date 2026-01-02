@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExampleMuxer Demo - Encode Loop</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .control-group {
+      margin: 20px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    input, select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #1976d2;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .status {
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 20px 0;
+      display: block;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .stat-box {
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      border-left: 3px solid #4CAF50;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 5px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>ExampleMuxer Demo - Encode Loop</h1>
+  <p>Render frames to canvas, encode with VideoEncoder, and mux to MP4 using ExampleMuxer.</p>
+
+  <div class="control-group">
+    <label>Frame Count</label>
+    <input type="number" id="frameCount" value="300" min="10" max="10000">
+
+    <label style="display: inline; margin-left: 20px;">FPS</label>
+    <input type="number" id="fps" value="30" min="1" max="120" style="width: 80px;">
+
+    <label style="display: inline; margin-left: 20px;">Quality</label>
+    <select id="quality">
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium</option>
+      <option value="high">High</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <button id="encodeBtn">Start Encoding</button>
+    <button id="downloadBtn" disabled>Download MP4</button>
+  </div>
+
+  <div class="status" id="status">Configure settings and click "Start Encoding"</div>
+
+  <canvas id="canvas" width="1280" height="720"></canvas>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-label">Frames Rendered</div>
+      <div class="stat-value" id="framesRendered">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Frames Encoded</div>
+      <div class="stat-value" id="framesEncoded">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Encoder Queue</div>
+      <div class="stat-value" id="encoderQueue">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Progress</div>
+      <div class="stat-value" id="progress">0%</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Encoding FPS</div>
+      <div class="stat-value" id="encodingFps">0</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { getBitrate, getCodecString, ExampleMuxer } from '../src/index.ts';
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const encodeBtn = document.getElementById('encodeBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const status = document.getElementById('status');
+
+    const frameCountInput = document.getElementById('frameCount');
+    const fpsInput = document.getElementById('fps');
+    const qualityInput = document.getElementById('quality');
+
+    // Stats elements
+    const framesRenderedEl = document.getElementById('framesRendered');
+    const framesEncodedEl = document.getElementById('framesEncoded');
+    const encoderQueueEl = document.getElementById('encoderQueue');
+    const progressEl = document.getElementById('progress');
+    const encodingFpsEl = document.getElementById('encodingFps');
+
+    let encoder = null;
+    let muxer = null;
+    let mp4Buffer = null;
+    let isEncoding = false;
+
+    // Encoding state
+    let frameNumber = 0;
+    let framesEncoded = 0;
+    let totalFrames = 0;
+    let startTime = 0;
+    const ENCODER_QUEUE_LIMIT = 20;
+
+    encodeBtn.addEventListener('click', startEncoding);
+    downloadBtn.addEventListener('click', downloadMP4);
+
+    async function startEncoding() {
+      if (isEncoding) return;
+
+      // Reset state
+      frameNumber = 0;
+      framesEncoded = 0;
+      totalFrames = parseInt(frameCountInput.value);
+      mp4Buffer = null;
+      downloadBtn.disabled = true;
+      encodeBtn.disabled = true;
+      isEncoding = true;
+      startTime = performance.now();
+
+      // Update stats
+      updateStats();
+
+      const fps = parseInt(fpsInput.value);
+      const quality = qualityInput.value;
+
+      // Calculate bitrate
+      const bitrate = getBitrate(canvas.width, canvas.height, fps);
+
+      status.textContent = `Initializing encoder (${bitrate} bps, ${fps} fps, ${quality} quality)...`;
+
+      // Get codec string
+      const codecString = getCodecString('avc', canvas.width, canvas.height, bitrate)
+        
+   
+
+      // Initialize muxer
+      muxer = new ExampleMuxer('video');
+
+      // Initialize encoder
+      encoder = new VideoEncoder({
+        output: (chunk, metadata) => {
+          muxer.addChunk(chunk, metadata);
+          framesEncoded++;
+          updateStats();
+        },
+        error: (e) => {
+          console.error('Encoder error:', e);
+          status.textContent = `Encoder error: ${e.message}`;
+          isEncoding = false;
+          encodeBtn.disabled = false;
+        }
+      });
+
+      
+
+      encoder.configure({
+        codec: codecString,
+        width: canvas.width,
+        height: canvas.height,
+        bitrate,
+        framerate: fps
+      });
+
+      status.textContent = 'Encoding...';
+
+      // Start the encode loop
+      await encodeLoop();
+    }
+
+    async function encodeLoop() {
+      if (frameNumber >= totalFrames) {
+        // Encoding complete
+        await finishEncoding();
+        return;
+      }
+
+      // Wait if encoder queue is full
+      if (encoder.encodeQueueSize >= ENCODER_QUEUE_LIMIT) {
+        await waitForEncoder();
+      }
+
+      // Render frame
+      renderFrame(frameNumber);
+
+      // Create VideoFrame from canvas
+      const videoFrame = new VideoFrame(canvas, {
+        timestamp: (frameNumber * 1_000_000) / parseInt(fpsInput.value)
+      });
+
+      // Encode
+      encoder.encode(videoFrame, { keyFrame: frameNumber % 150 === 0 });
+      videoFrame.close();
+
+      frameNumber++;
+      updateStats();
+
+      // Continue loop
+      requestAnimationFrame(encodeLoop);
+    }
+
+    function waitForEncoder() {
+      return new Promise((resolve) => {
+        const checkQueue = () => {
+          if (encoder.encodeQueueSize < ENCODER_QUEUE_LIMIT) {
+            resolve();
+          } else {
+            setTimeout(checkQueue, 10);
+          }
+        };
+        checkQueue();
+      });
+    }
+
+    async function finishEncoding() {
+      status.textContent = 'Flushing encoder...';
+      await encoder.flush();
+
+      status.textContent = 'Finalizing MP4...';
+      mp4Buffer = await muxer.finish();
+
+      const duration = (performance.now() - startTime) / 1000;
+      status.textContent = `Encoding complete! ${totalFrames} frames in ${duration.toFixed(2)}s (avg ${(totalFrames/duration).toFixed(1)} fps)`;
+
+      downloadBtn.disabled = false;
+      encodeBtn.disabled = false;
+      isEncoding = false;
+
+      encoder.close();
+      encoder = null;
+      muxer = null;
+    }
+
+    function renderFrame(frameNum) {
+      // Clear canvas
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw animated gradient background
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      const hue = (frameNum * 2) % 360;
+      gradient.addColorStop(0, `hsl(${hue}, 70%, 50%)`);
+      gradient.addColorStop(1, `hsl(${(hue + 60) % 360}, 70%, 30%)`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw animated circle
+      const centerX = canvas.width / 2 + Math.sin(frameNum * 0.02) * 200;
+      const centerY = canvas.height / 2 + Math.cos(frameNum * 0.03) * 150;
+      const radius = 100 + Math.sin(frameNum * 0.05) * 50;
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Draw frame number
+      ctx.font = 'bold 72px monospace';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Frame ${frameNum}`, canvas.width / 2, canvas.height / 2);
+
+      // Draw progress bar
+      const barWidth = canvas.width * 0.8;
+      const barHeight = 20;
+      const barX = (canvas.width - barWidth) / 2;
+      const barY = canvas.height - 60;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      const progress = frameNum / totalFrames;
+      ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
+      ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+    }
+
+    function updateStats() {
+      framesRenderedEl.textContent = frameNumber;
+      framesEncodedEl.textContent = framesEncoded;
+      encoderQueueEl.textContent = encoder ? encoder.encodeQueueSize : 0;
+      progressEl.textContent = `${Math.round((frameNumber / totalFrames) * 100)}%`;
+
+      const elapsed = (performance.now() - startTime) / 1000;
+      const fps = elapsed > 0 ? (framesEncoded / elapsed).toFixed(1) : 0;
+      encodingFpsEl.textContent = fps;
+    }
+
+    function downloadMP4() {
+      if (!mp4Buffer) return;
+
+      const blob = new Blob([mp4Buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `encoded-${Date.now()}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Initial frame render
+    renderFrame(0);
+  </script>
+</body>
+</html>
