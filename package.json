@@ -1,6 +1,6 @@
 {
   "name": "webcodecs-utils",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Utility functions for working with WebCodecs API",
   "homepage": "https://webcodecsfundamentals.org",
   "repository": {
@@ -35,8 +35,11 @@
     "mp4",
     "mp3"
   ],
-  "author": "",
+  "author": "Sam Bhattacharyya <https://github.com/sb2702>",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sb2702/webcodecs-utils/issues"
+  },
   "devDependencies": {
     "@webgpu/types": "^0.1.44",
     "typescript": "^5.3.3",
