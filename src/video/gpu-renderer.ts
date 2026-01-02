@@ -1,6 +1,43 @@
-
-
-
+/**
+ * Zero-copy VideoFrame rendering using WebGPU with ImageBitmap fallback.
+ *
+ * This class provides high-performance video rendering by using WebGPU's
+ * `importExternalTexture()` for zero-copy rendering when available, or falling
+ * back to ImageBitmapRenderer for compatibility.
+ *
+ * Features:
+ * - **Zero-copy rendering** via WebGPU (no pixel copying between GPU and CPU)
+ * - **Two filter modes**: Linear (hardware accelerated) and Bicubic (high quality)
+ * - **Automatic fallback** to ImageBitmapRenderer if WebGPU is unavailable
+ * - **Works with VideoFrame** objects from VideoDecoder
+ *
+ * @example
+ * ```typescript
+ * const canvas = document.getElementById('canvas');
+ * const renderer = new GPUFrameRenderer(canvas, { filterMode: 'linear' });
+ * await renderer.init();
+ *
+ * // In VideoDecoder output callback:
+ * decoder.configure({
+ *   output: (frame) => {
+ *     renderer.drawImage(frame);
+ *     frame.close();
+ *   },
+ *   error: (e) => console.error(e)
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Switch to high-quality bicubic filtering
+ * renderer.setFilterMode('bicubic');
+ *
+ * // Check current mode
+ * if (renderer.getMode() === 'webgpu') {
+ *   console.log('Using WebGPU zero-copy rendering');
+ * }
+ * ```
+ */
 export class GPUFrameRenderer {
 
     canvas: HTMLCanvasElement | OffscreenCanvas;
@@ -14,7 +51,13 @@ export class GPUFrameRenderer {
     uniformBuffer: GPUBuffer | null;
     bitmapCtx: ImageBitmapRenderingContext | null;
 
-
+    /**
+     * Create a new GPUFrameRenderer.
+     *
+     * @param canvas - The canvas element to render to (HTMLCanvasElement or OffscreenCanvas)
+     * @param options - Configuration options
+     * @param options.filterMode - Scaling filter: 'linear' (default) or 'bicubic' (higher quality)
+     */
     constructor(canvas: HTMLCanvasElement | OffscreenCanvas, options: { filterMode?: 'linear' | 'bicubic' } = {}) {
       this.canvas = canvas;
       this.mode = 'webgpu'; // 'webgpu' or 'bitmap'
@@ -32,6 +75,22 @@ export class GPUFrameRenderer {
       this.bitmapCtx = null;
     }
   
+    /**
+     * Initialize the renderer. Must be called before drawImage().
+     *
+     * Attempts to initialize WebGPU first for zero-copy rendering. If WebGPU
+     * is unavailable or initialization fails, automatically falls back to
+     * ImageBitmapRenderer.
+     *
+     * @returns Promise that resolves when initialization is complete
+     *
+     * @example
+     * ```typescript
+     * const renderer = new GPUFrameRenderer(canvas);
+     * await renderer.init();
+     * // Ready to render
+     * ```
+     */
     async init() {
       // Try to initialize WebGPU first
       if (navigator.gpu) {
@@ -44,7 +103,7 @@ export class GPUFrameRenderer {
           console.warn('GPUDrawImage: WebGPU initialization failed, falling back to ImageBitmap', e);
         }
       }
-  
+
       // Fall back to ImageBitmapRenderer
       this.initBitmapRenderer();
       this.mode = 'bitmap';

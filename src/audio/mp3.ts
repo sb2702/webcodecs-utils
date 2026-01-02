@@ -23,11 +23,48 @@ interface MP3EncoderConfig {
     channels: number;
 }
 
+/**
+ * Encode audio to MP3 format using LameJS.
+ *
+ * This encoder converts AudioData objects to MP3 format. It handles both
+ * planar (f32-planar) and interleaved (f32) audio formats automatically.
+ *
+ * @example
+ * ```typescript
+ * // Create encoder
+ * const encoder = new MP3Encoder({
+ *   sampleRate: 48000,
+ *   bitRate: 192,  // 192 kbps
+ *   channels: 2    // Stereo
+ * });
+ *
+ * // Encode AudioData objects
+ * for (const audioData of audioDataArray) {
+ *   const mp3Chunk = encoder.processBatch(audioData);
+ *   encoder.encodedData.push(mp3Chunk);
+ * }
+ *
+ * // Get final MP3 file
+ * const mp3Blob = encoder.finish();
+ * ```
+ *
+ * @remarks
+ * This encoder uses LameJS for encoding. For production use, consider using
+ * the native AudioEncoder API with opus codec, or a server-side encoder.
+ */
 class MP3Encoder {
     private mp3encoder: any;
     private config: MP3EncoderConfig;
     encodedData: Uint8Array[];
 
+    /**
+     * Create a new MP3Encoder.
+     *
+     * @param config - Encoder configuration
+     * @param config.sampleRate - Audio sample rate in Hz (e.g., 48000)
+     * @param config.bitRate - MP3 bitrate in kbps (e.g., 192)
+     * @param config.channels - Number of audio channels (1 = mono, 2 = stereo)
+     */
     constructor(config: MP3EncoderConfig) {
         this.config = config;
 
@@ -60,7 +97,12 @@ class MP3Encoder {
         return interleavedInt16;
     }
 
-    // Process a single batch of AudioData objects
+    /**
+     * Encode a single AudioData object to MP3.
+     *
+     * @param audioData - The AudioData object to encode
+     * @returns Encoded MP3 data as Uint8Array (add this to encodedData array)
+     */
     processBatch(audioData: AudioData): Uint8Array {
         const samples = this.convertAudioDataToInt16(audioData);
         
@@ -85,7 +127,14 @@ class MP3Encoder {
         return mp3buf;
     }
 
-    // Finalize encoding and get all data as a Blob
+    /**
+     * Finalize encoding and get the complete MP3 file as a Blob.
+     *
+     * This method flushes any remaining data and combines all encoded chunks
+     * into a single MP3 file blob.
+     *
+     * @returns Complete MP3 file as a Blob
+     */
     finish(): Blob {
         const finalMp3buf = this.mp3encoder.flush();
         if (finalMp3buf.length > 0) {
@@ -115,15 +164,59 @@ class MP3Encoder {
 }
 
 export interface MP3DecoderOutput {
-    channels: Float32Array[], 
-    sampleRate: number, 
+    channels: Float32Array[],
+    sampleRate: number,
     numberOfChannels: number
 }
 
+/**
+ * Decode MP3 files to raw PCM samples or AudioData objects.
+ *
+ * This decoder uses mpg123-decoder (WebAssembly) to decode MP3 files.
+ * It can output either raw Float32Array samples or AudioData objects
+ * ready for use with WebCodecs APIs.
+ *
+ * @example
+ * ```typescript
+ * // Decode to raw samples
+ * const decoder = new MP3Decoder();
+ * await decoder.initialize();
+ *
+ * const mp3Buffer = await file.arrayBuffer();
+ * const { channels, sampleRate, numberOfChannels } = await decoder.toSamples(mp3Buffer);
+ *
+ * // channels[0] = left channel (Float32Array)
+ * // channels[1] = right channel (Float32Array) if stereo
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Decode to AudioData objects
+ * const decoder = new MP3Decoder();
+ * await decoder.initialize();
+ *
+ * const mp3Buffer = await file.arrayBuffer();
+ * const audioDataArray = await decoder.toAudioData(mp3Buffer);
+ *
+ * // Use with AudioEncoder or other WebCodecs APIs
+ * for (const audioData of audioDataArray) {
+ *   encoder.encode(audioData);
+ *   audioData.close();
+ * }
+ *
+ * await decoder.destroy();
+ * ```
+ */
 class MP3Decoder {
     private decoder: any;
     private isReady: boolean = false;
 
+    /**
+     * Create a new MP3Decoder.
+     *
+     * The decoder auto-detects sample rate and channel configuration from the MP3 file.
+     * Call initialize() before using.
+     */
     constructor() {
         // mpg123-decoder will auto-detect sample rate and config from the MP3 file
     }

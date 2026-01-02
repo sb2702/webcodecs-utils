@@ -14,6 +14,20 @@ function showDemoWarning() {
   }
 }
 
+/**
+ * Extract all video chunks from a media file.
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use MediaBunny or web-demuxer directly.
+ *
+ * @param file - Media file to demux
+ * @returns Array of EncodedVideoChunk objects
+ *
+ * @example
+ * ```typescript
+ * const chunks = await getVideoChunks(file);
+ * // Returns all video chunks from the file
+ * ```
+ */
 export async function getVideoChunks(file: File): Promise<EncodedVideoChunk[]> {
     showDemoWarning();
 
@@ -41,8 +55,27 @@ export async function getVideoChunks(file: File): Promise<EncodedVideoChunk[]> {
 
 }
 
-
-
+/**
+ * Extract all audio chunks and decoder config from a media file.
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use MediaBunny or web-demuxer directly.
+ *
+ * @param file - Media file to demux
+ * @returns Object containing chunks array and AudioDecoderConfig
+ *
+ * @example
+ * ```typescript
+ * const { chunks, config } = await demuxAudio(file);
+ *
+ * // Configure decoder
+ * decoder.configure(config);
+ *
+ * // Decode all chunks
+ * for (const chunk of chunks) {
+ *   decoder.decode(chunk);
+ * }
+ * ```
+ */
 export async function demuxAudio(file: File): Promise<{chunks: EncodedAudioChunk[], config: AudioDecoderConfig}>{
     showDemoWarning();
 
@@ -85,7 +118,27 @@ export async function demuxAudio(file: File): Promise<{chunks: EncodedAudioChunk
    
 }
 
-
+/**
+ * Extract all video chunks and decoder config from a media file.
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use MediaBunny or web-demuxer directly.
+ *
+ * @param file - Media file to demux
+ * @returns Object containing chunks array and VideoDecoderConfig
+ *
+ * @example
+ * ```typescript
+ * const { chunks, config } = await demuxVideo(file);
+ *
+ * // Configure decoder
+ * decoder.configure(config);
+ *
+ * // Decode all chunks
+ * for (const chunk of chunks) {
+ *   decoder.decode(chunk);
+ * }
+ * ```
+ */
 export async function demuxVideo(file: File): Promise<{chunks: EncodedVideoChunk[], config: VideoDecoderConfig}>{
     showDemoWarning();
 
@@ -129,7 +182,20 @@ export async function demuxVideo(file: File): Promise<{chunks: EncodedVideoChunk
    
 }
 
-
+/**
+ * Extract all audio chunks from a media file.
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use MediaBunny or web-demuxer directly.
+ *
+ * @param file - Media file to demux
+ * @returns Array of EncodedAudioChunk objects
+ *
+ * @example
+ * ```typescript
+ * const chunks = await getAudioChunks(file);
+ * // Returns all audio chunks from the file
+ * ```
+ */
 export async function getAudioChunks(file: File): Promise<EncodedAudioChunk[]> {
     showDemoWarning();
 

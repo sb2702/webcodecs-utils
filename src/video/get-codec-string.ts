@@ -1,4 +1,47 @@
-// Taken from MediaBunny's codec.ts file: https://github.com/Vanilagy/mediabunny/blob/main/src/codec.ts
+/**
+ * Generate proper codec strings with profiles and levels for video encoding.
+ *
+ * This function automatically determines the appropriate profile and level based on
+ * video resolution and bitrate. The codec strings follow the format required by
+ * VideoEncoder.configure() and are essential for proper encoding.
+ *
+ * Supported codecs:
+ * - **AVC (H.264)**: High Profile, levels 1-6.2
+ * - **HEVC (H.265)**: Main Profile, levels 1-6.2 (Low/High Tier)
+ * - **VP8**: Simple codec string 'vp8'
+ * - **VP9**: Profile 0, 8-bit, levels 1-6.2
+ * - **AV1**: Main Profile, levels 2.0-6.3 (Main/High Tier)
+ *
+ * @param codec - Codec type: 'avc', 'hevc', 'vp8', 'vp9', or 'av1'
+ * @param width - Video width in pixels
+ * @param height - Video height in pixels
+ * @param bitrate - Target bitrate in bits per second
+ * @returns Properly formatted codec string (e.g., 'avc1.640028' for H.264)
+ *
+ * @example
+ * ```typescript
+ * // H.264 for 1080p
+ * const codecString = getCodecString('avc', 1920, 1080, 5000000);
+ * // Returns: 'avc1.640028' (High Profile, Level 4.0)
+ *
+ * encoder.configure({
+ *   codec: codecString,
+ *   width: 1920,
+ *   height: 1080,
+ *   bitrate: 5000000
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // VP9 for 4K
+ * const codecString = getCodecString('vp9', 3840, 2160, 20000000);
+ * // Returns: 'vp09.00.50.08' (Profile 0, Level 5.0, 8-bit)
+ * ```
+ *
+ * @remarks
+ * Adapted from MediaBunny's codec.ts: https://github.com/Vanilagy/mediabunny/blob/main/src/codec.ts
+ */
 export function getCodecString (codec: 'avc' | 'hevc' | 'vp8' | 'vp9' | 'av1', width: number, height: number, bitrate: number)  {
 
         // https://en.wikipedia.org/wiki/Advanced_Video_Coding
