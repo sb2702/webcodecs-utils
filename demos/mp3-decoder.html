@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 40px auto;
       padding: 0 20px;
     }
@@ -24,24 +24,62 @@
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+    button {
+      padding: 10px 20px;
+      background: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #1976d2;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
     .status {
       padding: 10px;
       background: #f5f5f5;
       border-radius: 4px;
       margin: 10px 0;
+      font-family: monospace;
     }
-    .output {
+    .results {
       margin: 20px 0;
       padding: 15px;
       background: #f5f5f5;
       border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+    th {
+      background: #e0e0e0;
+      font-weight: bold;
+    }
+    .channel-info {
+      background: white;
+      padding: 10px;
+      margin: 10px 0;
+      border-left: 3px solid #4CAF50;
       font-family: 'Courier New', monospace;
     }
   </style>
 </head>
 <body>
   <h1>MP3Decoder Demo</h1>
-  <p>Decode MP3 files to raw audio samples.</p>
+  <p>Decode MP3 files to raw audio samples and verify with Web Audio playback.</p>
 
   <div class="control-group">
     <label>Select MP3 File</label>
@@ -49,30 +87,183 @@
   </div>
 
   <div class="status" id="status">Select an MP3 file to begin</div>
-  <div class="output" id="output"></div>
+
+  <div class="control-group">
+    <button id="playOriginalBtn" disabled>Play Original MP3 (Web Audio)</button>
+    <button id="playDecodedBtn" disabled>Play Decoded Samples (Verification)</button>
+    <button id="stopBtn" disabled>Stop</button>
+  </div>
+
+  <div class="results" id="results"></div>
 
   <script type="module">
     import { MP3Decoder } from '../src/index.ts';
 
     const fileInput = document.getElementById('fileInput');
+    const playOriginalBtn = document.getElementById('playOriginalBtn');
+    const playDecodedBtn = document.getElementById('playDecodedBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const status = document.getElementById('status');
-    const output = document.getElementById('output');
+    const results = document.getElementById('results');
+
+    let audioContext = null;
+    let currentSource = null;
+    let decodedSamples = null;
+    let originalFile = null;
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
+      originalFile = file;
       await decodeMP3(file);
     });
 
+    playOriginalBtn.addEventListener('click', () => playOriginal());
+    playDecodedBtn.addEventListener('click', () => playDecoded());
+    stopBtn.addEventListener('click', () => stopPlayback());
+
     async function decodeMP3(file) {
       status.textContent = 'Decoding MP3...';
-      output.textContent = '';
+      playOriginalBtn.disabled = true;
+      playDecodedBtn.disabled = true;
+      results.innerHTML = '';
 
-      // TODO: Implement MP3 decoding
-      // This will be populated with demo code
+      try {
+        // Initialize decoder
+        const decoder = new MP3Decoder();
+        await decoder.initialize();
 
-      status.textContent = 'Ready - implement demo code here';
+        // Read file as ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+
+        // Decode MP3 to samples
+        const result = await decoder.decodeMP3ToSamples(arrayBuffer);
+        decodedSamples = result;
+
+        // Display results
+        displayResults(file.name, result);
+
+        // Initialize Web Audio
+        if (!audioContext) {
+          audioContext = new AudioContext();
+        }
+
+        status.textContent = 'Decoding complete! Try playing to verify.';
+        playOriginalBtn.disabled = false;
+        playDecodedBtn.disabled = false;
+
+        // Clean up decoder
+        await decoder.destroy();
+
+      } catch (error) {
+        status.textContent = `Error: ${error.message}`;
+        console.error(error);
+      }
+    }
+
+    function displayResults(fileName, result) {
+      const { channels, sampleRate, numberOfChannels } = result;
+      const durationSeconds = channels[0].length / sampleRate;
+
+      let html = `
+        <h3>File: ${fileName}</h3>
+        <table>
+          <tr><th>Property</th><th>Value</th></tr>
+          <tr><td>Sample Rate</td><td>${sampleRate} Hz</td></tr>
+          <tr><td>Channels</td><td>${numberOfChannels}</td></tr>
+          <tr><td>Samples per Channel</td><td>${channels[0].length.toLocaleString()}</td></tr>
+          <tr><td>Duration</td><td>${durationSeconds.toFixed(2)} seconds</td></tr>
+        </table>
+
+        <h4>Channel Data:</h4>
+      `;
+
+      channels.forEach((channel, idx) => {
+        const channelName = idx === 0 ? 'Left' : idx === 1 ? 'Right' : `Channel ${idx}`;
+
+        html += `
+          <div class="channel-info">
+            <strong>${channelName}:</strong><br>
+            Length: ${channel.length.toLocaleString()} samples<br>
+            Type: ${channel.constructor.name}
+          </div>
+        `;
+      });
+
+      results.innerHTML = html;
+    }
+
+    async function playOriginal() {
+      stopPlayback();
+
+      // Decode with Web Audio directly as reference
+      const arrayBuffer = await originalFile.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      currentSource = audioContext.createBufferSource();
+      currentSource.buffer = audioBuffer;
+      currentSource.connect(audioContext.destination);
+      currentSource.start();
+
+      currentSource.onended = () => {
+        stopBtn.disabled = true;
+        playOriginalBtn.disabled = false;
+        playDecodedBtn.disabled = false;
+      };
+
+      playOriginalBtn.disabled = true;
+      playDecodedBtn.disabled = true;
+      stopBtn.disabled = false;
+      status.textContent = 'Playing original MP3...';
+    }
+
+    async function playDecoded() {
+      stopPlayback();
+
+      if (!decodedSamples) return;
+
+      const { channels, sampleRate, numberOfChannels } = decodedSamples;
+
+      // Create Web Audio buffer from decoded samples
+      const audioBuffer = audioContext.createBuffer(
+        numberOfChannels,
+        channels[0].length,
+        sampleRate
+      );
+
+      // Copy decoded channels into Web Audio buffer
+      for (let ch = 0; ch < numberOfChannels; ch++) {
+        audioBuffer.getChannelData(ch).set(channels[ch]);
+      }
+
+      // Play
+      currentSource = audioContext.createBufferSource();
+      currentSource.buffer = audioBuffer;
+      currentSource.connect(audioContext.destination);
+      currentSource.start();
+
+      currentSource.onended = () => {
+        stopBtn.disabled = true;
+        playOriginalBtn.disabled = false;
+        playDecodedBtn.disabled = false;
+      };
+
+      playOriginalBtn.disabled = true;
+      playDecodedBtn.disabled = true;
+      stopBtn.disabled = false;
+      status.textContent = 'Playing decoded samples (verification)...';
+    }
+
+    function stopPlayback() {
+      if (currentSource) {
+        currentSource.stop();
+        currentSource = null;
+      }
+      stopBtn.disabled = true;
+      playOriginalBtn.disabled = false;
+      playDecodedBtn.disabled = false;
+      status.textContent = 'Playback stopped';
     }
   </script>
 </body>
