@@ -4,7 +4,7 @@ export { getCodecString } from './video/get-codec-string';
 export { GPUDrawImage } from './video/gpu-draw-image';
 
 // Audio utilities
-export { extractAudioChannels } from './audio/extract-audio-channels';
+export { extractChannels } from './audio/extract-channels';
 export { MP3Encoder } from './audio/mp3-encoder';
 
 // Demux utilities

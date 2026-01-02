@@ -11,7 +11,7 @@ npm install webcodecs-utils
 ## Quick Start
 
 ```typescript
-import { getBitrate, GPUDrawImage, MP3Encoder } from 'webcodecs-utils';
+import { getBitrate, GPUDrawImage, extractChannels, MP4Demuxer } from 'webcodecs-utils';
 
 // Calculate optimal bitrate
 const bitrate = getBitrate(1920, 1080, 30, 'good');
@@ -21,12 +21,20 @@ const renderer = new GPUDrawImage(canvas);
 await renderer.init();
 renderer.drawImage(videoFrame, 0, 0);
 
-// Encode audio to MP3
-const encoder = new MP3Encoder({
-  sampleRate: 44100,
-  bitRate: 192,
-  channels: 2
+// Extract audio channels
+const decoder = new AudioDecoder({
+  output: (audioData) => {
+    const channels = extractChannels(audioData);
+    const leftChannel = channels[0];
+    const rightChannel = channels[1];
+  },
+  error: (e) => console.error(e)
 });
+
+// Parse MP4 files
+const demuxer = new MP4Demuxer(file);
+await demuxer.load();
+const videoChunks = await demuxer.extractSegment('video', 0, 10);
 ```
 
 ## Utilities
@@ -84,14 +92,28 @@ class GPUDrawImage {
 
 ### Audio
 
-#### **extractAudioChannels**
+#### **extractChannels**
 Extract and de-interleave audio channels from AudioData into Float32Array[].
 
-- 📄 [Source](./src/audio/extract-audio-channels.ts)
+Handles both planar (f32-planar) and interleaved (f32) audio formats automatically. Returns an array of Float32Array buffers, one per channel (e.g., [left, right] for stereo).
+
+- 📄 [Source](./src/audio/extract-channels.ts)
 - 🎮 [Demo](./demos/audio-channels-demo.html)
 
 ```typescript
-function extractAudioChannels(audioData: AudioData): Float32Array[]
+function extractChannels(audioData: AudioData): Float32Array[]
+```
+
+**Example:**
+```typescript
+const channels = extractChannels(audioData);
+const leftChannel = channels[0];
+const rightChannel = channels[1]; // if stereo
+
+// Process audio samples
+for (let i = 0; i < leftChannel.length; i++) {
+  leftChannel[i] *= 0.5; // Reduce volume by 50%
+}
 ```
 
 #### **MP3Encoder**
@@ -123,14 +145,29 @@ Parse MP4 files and extract EncodedVideoChunk/EncodedAudioChunk objects using MP
 
 ```typescript
 class MP4Demuxer {
-  async parseMetadata(file: File): Promise<MP4Data>
+  constructor(file: File)
+
+  async load(onProgress?: (progress: number) => void): Promise<void>
+  getTracks(): TrackData
+  getVideoTrack(): VideoTrackData | undefined
+  getAudioTrack(): AudioTrackData | undefined
   async extractSegment(
-    file: File,
     trackType: 'audio' | 'video',
     startTime: number,
     endTime: number
   ): Promise<EncodedVideoChunk[] | EncodedAudioChunk[]>
 }
+```
+
+**Example:**
+```typescript
+const demuxer = new MP4Demuxer(file);
+await demuxer.load((progress) => console.log(`Loading: ${progress * 100}%`));
+
+const videoTrack = demuxer.getVideoTrack();
+console.log(`Video: ${videoTrack.codec}, ${videoTrack.codedWidth}x${videoTrack.codedHeight}`);
+
+const videoChunks = await demuxer.extractSegment('video', 0, 10);
 ```
 
 ## Browser Support
