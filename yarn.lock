@@ -278,10 +278,10 @@ lamejs@^1.2.1:
   dependencies:
     use-strict "1.0.1"
 
-mp4box@^0.5.2:
-  version "0.5.4"
-  resolved "https://registry.yarnpkg.com/mp4box/-/mp4box-0.5.4.tgz#f09d85482e9215927e6a617e4894c742f3f019f7"
-  integrity sha512-GcCH0fySxBurJtvr0dfhz0IxHZjc1RP+F+I8xw+LIwkU1a+7HJx8NCDiww1I5u4Hz6g4eR1JlGADEGJ9r4lSfA==
+mp4box@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/mp4box/-/mp4box-2.3.0.tgz#6fd923e0fd4cc3642e8a512d80253310028c30df"
+  integrity sha512-nnABYbdh4UguEYyV+uRwQBi1tbb8kXka2Fx9yKzmDKAeh8gkvRKYxoK1XDd8GQIjSfN4rvsXrW1CBo4yRQJZDA==
 
 nanoid@^3.3.11:
   version "3.3.11"
