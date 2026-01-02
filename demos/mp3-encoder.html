@@ -32,6 +32,7 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 16px;
+      margin-right: 10px;
     }
     button:hover {
       background: #1976d2;
@@ -45,12 +46,33 @@
       background: #f5f5f5;
       border-radius: 4px;
       margin: 10px 0;
+      font-family: monospace;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+    th {
+      background: #e0e0e0;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <h1>MP3Encoder Demo</h1>
-  <p>Encode audio from video/audio files to MP3 format.</p>
+  <p>Extract audio from video/audio files and encode to MP3 format.</p>
 
   <div class="control-group">
     <label>Select Video/Audio File</label>
@@ -59,21 +81,34 @@
 
   <div class="status" id="status">Select a file to begin</div>
 
-  <button id="downloadBtn" disabled>Download MP3</button>
+  <div class="control-group">
+    <button id="downloadBtn" disabled>Download MP3</button>
+    <button id="playBtn" disabled>Play MP3</button>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <audio id="audioPlayer" controls style="width: 100%; margin-top: 20px; display: none;"></audio>
 
   <script type="module">
     import { MP3Encoder } from '../src/index.ts';
+    import { demuxAudio } from '../src/index.ts';
 
     const fileInput = document.getElementById('fileInput');
     const status = document.getElementById('status');
     const downloadBtn = document.getElementById('downloadBtn');
+    const playBtn = document.getElementById('playBtn');
+    const results = document.getElementById('results');
+    const audioPlayer = document.getElementById('audioPlayer');
 
     let mp3Blob = null;
+    let originalFileName = '';
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
+      originalFileName = file.name.replace(/\.[^/.]+$/, '');
       await processAudio(file);
     });
 
@@ -83,20 +118,120 @@
       const url = URL.createObjectURL(mp3Blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'output.mp3';
+      a.download = `${originalFileName}.mp3`;
       a.click();
       URL.revokeObjectURL(url);
     });
 
+    playBtn.addEventListener('click', () => {
+      if (!mp3Blob) return;
+
+      const url = URL.createObjectURL(mp3Blob);
+      audioPlayer.src = url;
+      audioPlayer.style.display = 'block';
+      audioPlayer.play();
+    });
+
     async function processAudio(file) {
-      status.textContent = 'Processing audio...';
+      status.textContent = 'Demuxing audio...';
       downloadBtn.disabled = true;
+      playBtn.disabled = true;
+      audioPlayer.style.display = 'none';
+      results.innerHTML = '';
       mp3Blob = null;
 
-      // TODO: Implement audio encoding to MP3
-      // This will be populated with demo code
+      try {
+        // Demux audio
+        const { chunks, config } = await demuxAudio(file);
 
-      status.textContent = 'Ready - implement demo code here';
+        status.textContent = `Decoding ${chunks.length} audio chunks...`;
+
+        // Decode audio in batches
+        const BATCH_SIZE = 1000;
+        const allAudioData = [];
+
+        for (let i = 0; i < Math.ceil(chunks.length / BATCH_SIZE); i++) {
+          const batchChunks = chunks.slice(i * BATCH_SIZE, Math.min((i + 1) * BATCH_SIZE, chunks.length));
+          const batchAudio = await decodeAudio(batchChunks, config);
+          allAudioData.push(...batchAudio);
+
+          status.textContent = `Decoding: ${Math.round((i + 1) / Math.ceil(chunks.length / BATCH_SIZE) * 100)}%`;
+        }
+
+        status.textContent = 'Encoding to MP3...';
+
+        // Create MP3 encoder
+        const encoder = new MP3Encoder({
+          sampleRate: config.sampleRate,
+          bitRate: 192, // 192 kbps
+          channels: config.numberOfChannels
+        });
+
+        // Encode each AudioData to MP3
+        for (const audioData of allAudioData) {
+          const mp3buf = encoder.processBatch(audioData);
+          encoder.encodedData.push(mp3buf);
+        }
+
+        // Finalize and get MP3 blob
+        mp3Blob = encoder.finish();
+
+        // Display results
+        displayResults(file.name, config, allAudioData.length, mp3Blob);
+
+        status.textContent = 'Encoding complete! You can now download or play the MP3.';
+        downloadBtn.disabled = false;
+        playBtn.disabled = false;
+
+      } catch (error) {
+        status.textContent = `Error: ${error.message}`;
+        console.error(error);
+      }
+    }
+
+    async function decodeAudio(chunks, config) {
+      const decodedData = [];
+      const total_chunks = chunks.length;
+
+      return new Promise((resolve, reject) => {
+        if (total_chunks === 0) return resolve(decodedData);
+
+        const decoder = new AudioDecoder({
+          output: (audioData) => {
+            decodedData.push(audioData);
+            if (decodedData.length === total_chunks) {
+              return resolve(decodedData);
+            }
+          },
+          error: (e) => { reject(e); }
+        });
+
+        decoder.configure(config);
+
+        for (const chunk of chunks) {
+          decoder.decode(chunk);
+        }
+        decoder.flush();
+      });
+    }
+
+    function displayResults(fileName, config, audioDataCount, blob) {
+      const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+
+      results.innerHTML = `
+        <h3>Encoding Results</h3>
+        <table>
+          <tr><th>Property</th><th>Value</th></tr>
+          <tr><td>Original File</td><td>${fileName}</td></tr>
+          <tr><td>Source Codec</td><td>${config.codec}</td></tr>
+          <tr><td>Sample Rate</td><td>${config.sampleRate} Hz</td></tr>
+          <tr><td>Channels</td><td>${config.numberOfChannels}</td></tr>
+          <tr><td>AudioData Objects Processed</td><td>${audioDataCount}</td></tr>
+          <tr><td><strong>Output Format</strong></td><td><strong>MP3</strong></td></tr>
+          <tr><td><strong>Output Size</strong></td><td><strong>${fileSizeMB} MB</strong></td></tr>
+          <tr><td><strong>Bitrate</strong></td><td><strong>192 kbps</strong></td></tr>
+        </table>
+      `;
     }
   </script>
 </body>
