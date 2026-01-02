@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "lamejs": "^1.2.1",
-    "mp4box": "^2.3.0",
+    "mp4box": "^0.5.2",
     "mpg123-decoder": "^1.0.3"
   }
 }

@@ -1,5 +1,6 @@
 // @ts-ignore - mp4box has no proper default export in v2.3.0
-import MP4Box from "mp4box";
+import MP4Box, {MP4File, MP4Info, MP4MediaTrack, MP4ArrayBuffer, MP4Sample, MP4Track, DataStream} from 'mp4box'
+
 
 // Type aliases for mp4box (which doesn't export proper TypeScript types)
 type MP4File = any;
@@ -53,12 +54,8 @@ const DURATION_BUFFER = 0.1; // Prevent reading beyond actual duration
     for (const entry of trak.mdia.minf.stbl.stsd.entries) {
       const box = entry.avcC || entry.hvcC || entry.vpcC || entry.av1C;
       if (box) {
-        const DataStreamClass = (MP4Box as any).DataStream;
-        const stream = new DataStreamClass(
-          undefined,
-          0,
-          DataStreamClass.BIG_ENDIAN
-        );
+      
+        const stream = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
         box.write(stream);
         // Skip 8-byte box header (4 bytes size + 4 bytes type)
         return new Uint8Array(stream.buffer, 8);
