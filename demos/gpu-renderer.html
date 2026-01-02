@@ -24,22 +24,50 @@
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
     canvas {
       border: 2px solid #333;
       max-width: 100%;
       display: block;
       margin: 20px 0;
+      background: #000;
     }
     .status {
       padding: 10px;
       background: #f5f5f5;
       border-radius: 4px;
       margin: 10px 0;
+      font-family: monospace;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    .badge-webgpu {
+      background: #4caf50;
+      color: white;
+    }
+    .badge-bitmap {
+      background: #ff9800;
+      color: white;
     }
   </style>
 </head>
 <body>
-  <h1>GPUFrameRenderer Demo</h1>
+  <h1>GPUFrameRenderer Demo <span id="modeBadge" class="badge">Loading...</span></h1>
   <p>Zero-copy video frame rendering using WebGPU with fallback to ImageBitmapRenderer.</p>
 
   <div class="control-group">
@@ -47,32 +75,226 @@
     <input type="file" id="fileInput" accept="video/*">
   </div>
 
-  <div class="status" id="status">Select a video file to begin</div>
+  <div class="control-group">
+    <button id="startBtn" disabled>Start Playback</button>
+    <button id="stopBtn" disabled>Stop</button>
+  </div>
+
+  <div class="status">
+    Status: <span id="status">Select a video file to begin</span><br>
+    Frames rendered: <span id="framesRendered">0</span><br>
+    FPS: <span id="fps">0</span>
+  </div>
 
   <canvas id="canvas" width="640" height="360"></canvas>
 
   <script type="module">
     import { GPUFrameRenderer } from '../src/index.ts';
+    import { MP4Demuxer } from '../src/index.ts';
 
     const fileInput = document.getElementById('fileInput');
     const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const framesRenderedEl = document.getElementById('framesRendered');
+    const fpsEl = document.getElementById('fps');
+    const modeBadgeEl = document.getElementById('modeBadge');
+
+    let renderer = null;
+    let chunks = [];
+    let videoConfig = null;
+    let decoder = null;
+    let renderInterval = null;
+    let decodeChunkIndex = 0;
+    let render_buffer = [];
+    let lastRenderedTime = 0;
+    let framesRendered = 0;
+    let fpsCounter = 0;
+    let fpsStartTime = 0;
+
+    const BATCH_DECODE_SIZE = 10;
+    const DECODE_QUEUE_LIMIT = 20;
+
+    async function init() {
+      status.textContent = 'Initializing renderer...';
+
+      renderer = new GPUFrameRenderer(canvas);
+      await renderer.init();
+
+      const mode = renderer.getMode();
+      if (mode === 'webgpu') {
+        modeBadgeEl.textContent = 'WebGPU';
+        modeBadgeEl.className = 'badge badge-webgpu';
+      } else {
+        modeBadgeEl.textContent = 'ImageBitmap';
+        modeBadgeEl.className = 'badge badge-bitmap';
+      }
+
+      status.textContent = 'Renderer initialized';
+    }
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
-      await processVideo(file);
+      await loadVideo(file);
     });
 
-    async function processVideo(file) {
-      status.textContent = 'Processing video...';
+    async function loadVideo(file) {
+      status.textContent = 'Loading video...';
+      startBtn.disabled = true;
 
-      // TODO: Implement video processing with GPUFrameRenderer
-      // This will be populated with demo code
+      const demuxer = new MP4Demuxer(file);
+      await demuxer.load();
 
-      status.textContent = 'Ready - implement demo code here';
+      videoConfig = demuxer.getVideoDecoderConfig();
+      if (!videoConfig) {
+        status.textContent = 'Error: No video track found';
+        return;
+      }
+
+      canvas.width = videoConfig.codedWidth;
+      canvas.height = videoConfig.codedHeight;
+
+      status.textContent = 'Extracting video chunks...';
+      chunks = await demuxer.extractSegment('video', 0, demuxer.getTracks().duration);
+
+      status.textContent = `Ready - ${chunks.length} chunks loaded`;
+      startBtn.disabled = false;
     }
+
+    function fillBuffer() {
+      for (let i = 0; i < BATCH_DECODE_SIZE; i++) {
+        if (decodeChunkIndex < chunks.length) {
+          if (decoder.decodeQueueSize > DECODE_QUEUE_LIMIT) continue;
+
+          try {
+            decoder.decode(chunks[decodeChunkIndex]);
+            decodeChunkIndex += 1;
+
+            if (decodeChunkIndex === chunks.length) decoder.flush();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    }
+
+    function getLatestFrame(time) {
+      if (render_buffer.length === 0) return -1;
+      if (render_buffer[0].timestamp / 1e6 > time) return -1;
+
+      let latest = 0;
+      for (let i = 0; i < render_buffer.length; i++) {
+        if (render_buffer[i].timestamp / 1e6 <= time) {
+          latest = i;
+        }
+      }
+      return latest;
+    }
+
+    function render(time) {
+      lastRenderedTime = time;
+
+      if (render_buffer.length === 0) return;
+
+      const latest_frame = getLatestFrame(time);
+      if (latest_frame < 0) return;
+
+      // Close and drop old frames
+      for (let i = 0; i < latest_frame; i++) {
+        render_buffer[i].close();
+      }
+      render_buffer.splice(0, latest_frame);
+
+      const frame = render_buffer.shift();
+      renderer.drawImage(frame, 0, 0);
+      frame.close();
+
+      framesRendered++;
+      framesRenderedEl.textContent = framesRendered;
+
+      // Calculate FPS
+      fpsCounter++;
+      const elapsed = (performance.now() - fpsStartTime) / 1000;
+      if (elapsed > 1) {
+        fpsEl.textContent = Math.round(fpsCounter / elapsed);
+        fpsCounter = 0;
+        fpsStartTime = performance.now();
+      }
+
+      if (render_buffer.length < BATCH_DECODE_SIZE / 2) fillBuffer();
+    }
+
+    function start() {
+      status.textContent = 'Playing...';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      decodeChunkIndex = 0;
+      lastRenderedTime = 0;
+      framesRendered = 0;
+      fpsCounter = 0;
+      fpsStartTime = performance.now();
+      render_buffer.length = 0;
+
+      decoder = new VideoDecoder({
+        output: (frame) => {
+          if (frame.timestamp / 1e6 < lastRenderedTime) {
+            frame.close();
+            if (render_buffer.length < BATCH_DECODE_SIZE) fillBuffer();
+            return;
+          }
+          render_buffer.push(frame);
+        },
+        error: (error) => {
+          console.error(error);
+          status.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      decoder.configure(videoConfig);
+
+      const start_time = performance.now();
+      fillBuffer();
+
+      renderInterval = setInterval(() => {
+        const current_time = (performance.now() - start_time) / 1000;
+        render(current_time);
+
+        if (decodeChunkIndex >= chunks.length && render_buffer.length === 0) {
+          stop();
+          status.textContent = 'Finished';
+        }
+      }, 1000 / 30);
+    }
+
+    function stop() {
+      if (renderInterval) {
+        clearInterval(renderInterval);
+        renderInterval = null;
+      }
+
+      for (const frame of render_buffer) {
+        frame.close();
+      }
+      render_buffer.length = 0;
+
+      if (decoder && decoder.state !== 'closed') {
+        decoder.close();
+      }
+
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+
+    init().catch(err => {
+      console.error('Initialization error:', err);
+      status.textContent = `Error: ${err.message}`;
+    });
   </script>
 </body>
 </html>

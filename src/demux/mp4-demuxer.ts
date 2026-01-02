@@ -365,6 +365,18 @@ export class MP4Demuxer {
     return this.mp4Data.trackData;
   }
 
+
+
+  getVideoDecoderConfig(): VideoDecoderConfig | undefined{
+    return this.getVideoTrack();
+  }
+
+  getAudioDecoderConfig(): AudioDecoderConfig | undefined {
+    return this.getAudioTrack();
+  }
+
+
+
   /**
    * Get video track information.
    * @returns Video track data or undefined if no video track
