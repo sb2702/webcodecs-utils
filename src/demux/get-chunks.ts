@@ -1,7 +1,21 @@
 import { WebDemuxer } from 'web-demuxer'
 
+// Track if warning has been shown
+let warningShown = false;
+
+function showDemoWarning() {
+  if (!warningShown) {
+    console.warn(
+      '⚠️  Demo/Learning Function: This utility is intended for demos and learning purposes only. ' +
+      'For production use, please use a proper demuxing library like MediaBunny (https://mediabunny.dev/) ' +
+      'or web-demuxer (https://github.com/bilibili/web-demuxer) directly.'
+    );
+    warningShown = true;
+  }
+}
 
 export async function getVideoChunks(file: File): Promise<EncodedVideoChunk[]> {
+    showDemoWarning();
 
     const demuxer = new WebDemuxer({
         wasmFilePath: "https://cdn.jsdelivr.net/npm/web-demuxer@latest/dist/wasm-files/web-demuxer.wasm",
@@ -30,6 +44,7 @@ export async function getVideoChunks(file: File): Promise<EncodedVideoChunk[]> {
 
 
 export async function demuxAudio(file: File): Promise<{chunks: EncodedAudioChunk[], config: AudioDecoderConfig}>{
+    showDemoWarning();
 
     const demuxer = new WebDemuxer({
         wasmFilePath: "https://cdn.jsdelivr.net/npm/web-demuxer@latest/dist/wasm-files/web-demuxer.wasm",
@@ -72,6 +87,7 @@ export async function demuxAudio(file: File): Promise<{chunks: EncodedAudioChunk
 
 
 export async function demuxVideo(file: File): Promise<{chunks: EncodedVideoChunk[], config: VideoDecoderConfig}>{
+    showDemoWarning();
 
     const demuxer = new WebDemuxer({
         wasmFilePath: "https://cdn.jsdelivr.net/npm/web-demuxer@latest/dist/wasm-files/web-demuxer.wasm",
@@ -115,6 +131,7 @@ export async function demuxVideo(file: File): Promise<{chunks: EncodedVideoChunk
 
 
 export async function getAudioChunks(file: File): Promise<EncodedAudioChunk[]> {
+    showDemoWarning();
 
     const demuxer = new WebDemuxer({
         wasmFilePath: "https://cdn.jsdelivr.net/npm/web-demuxer@latest/dist/wasm-files/web-demuxer.wasm",
