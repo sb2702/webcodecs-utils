@@ -1,0 +1,43 @@
+{
+  "name": "webcodecs-utils",
+  "version": "0.1.0",
+  "description": "Utility functions for working with WebCodecs API",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "webcodecs",
+    "video",
+    "audio",
+    "encoding",
+    "decoding",
+    "mp4",
+    "mp3"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "lamejs": "^1.2.1",
+    "mp4box": "^0.5.2"
+  }
+}
