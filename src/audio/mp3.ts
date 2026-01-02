@@ -10,6 +10,7 @@ import BitStream from 'lamejs/src/js/BitStream';
 
 // @ts-ignore - mpg123-decoder has no types
 import { MPEGDecoderWebWorker } from 'mpg123-decoder';
+import { extractChannels } from './extract-channels';
 
 // LameJS needs these to be global
 (globalThis as any).MPEGMode = MPEGMode;
@@ -43,14 +44,8 @@ class MP3Encoder {
     private convertAudioDataToInt16(audioData: AudioData): Int16Array {
         const numChannels = audioData.numberOfChannels;
         const numFrames = audioData.numberOfFrames;
-        const planarData: Float32Array[] = [];
         
-        // Extract planar data for each channel
-        for (let channel = 0; channel < numChannels; channel++) {
-            const channelData = new Float32Array(numFrames);
-            audioData.copyTo(channelData, { planeIndex: channel });
-            planarData.push(channelData);
-        }
+        const planarData: Float32Array[] = extractChannels(audioData);
 
         // Convert to interleaved Int16 format
         const interleavedInt16 = new Int16Array(numFrames * numChannels);
