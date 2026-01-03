@@ -11,15 +11,15 @@ npm install webcodecs-utils
 ## Quick Start
 
 ```typescript
-import { getBitrate, GPUDrawImage, extractChannels, MP4Demuxer } from 'webcodecs-utils';
+import { getBitrate, GPUFrameRenderer, extractChannels, MP4Demuxer } from 'webcodecs-utils';
 
-// Calculate optimal bitrate
-const bitrate = getBitrate(1920, 1080, 30, 'good');
+// Calculate optimal bitrate (defaults to 30fps)
+const bitrate = getBitrate(1920, 1080);
 
 // Zero-copy video rendering with WebGPU
-const renderer = new GPUDrawImage(canvas);
+const renderer = new GPUFrameRenderer(canvas);
 await renderer.init();
-renderer.drawImage(videoFrame, 0, 0);
+renderer.drawImage(videoFrame);
 
 // Extract audio channels
 const decoder = new AudioDecoder({
@@ -45,14 +45,14 @@ const videoChunks = await demuxer.extractSegment('video', 0, 10);
 Calculate optimal bitrate for video encoding based on resolution, framerate, and quality.
 
 - 📄 [Source](./src/video/get-bitrate.ts)
-- 🎮 [Demo](./demos/bitrate-demo.html)
+- 🎮 [Demo](./demos/get-bitrate.html)
 
 ```typescript
 function getBitrate(
   width: number,
   height: number,
-  fps: number,
-  quality?: 'low' | 'good' | 'high' | 'very-high'
+  fps?: number,  // default: 30
+  quality?: 'low' | 'good' | 'high' | 'very-high'  // default: 'good'
 ): number
 ```
 
@@ -60,7 +60,7 @@ function getBitrate(
 Generate proper codec strings (avc1, vp09, etc.) with correct profile/level for VideoEncoder configuration.
 
 - 📄 [Source](./src/video/get-codec-string.ts)
-- 🎮 [Demo](./demos/codec-string-demo.html)
+- 🎮 [Demo](./demos/get-codec-string.html)
 
 ```typescript
 function getCodecString(
@@ -71,21 +71,23 @@ function getCodecString(
 ): string
 ```
 
-#### **GPUDrawImage**
+#### **GPUFrameRenderer**
 Zero-copy video frame rendering using WebGPU importExternalTexture, with fallback to ImageBitmapRenderer.
 
-- 📄 [Source](./src/video/gpu-draw-image.ts)
-- 🎮 [Demo](./demos/gpu-renderer-demo.html)
+- 📄 [Source](./src/video/gpu-renderer.ts)
+- 🎮 [Demo](./demos/gpu-renderer.html)
 
 ```typescript
-class GPUDrawImage {
+class GPUFrameRenderer {
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas, options?: {
     filterMode?: 'linear' | 'bicubic'
   })
 
   async init(): Promise<void>
-  drawImage(videoFrame: VideoFrame, dx?: number, dy?: number): void
+  drawImage(videoFrame: VideoFrame): void
   getMode(): 'webgpu' | 'bitmap' | null
+  getFilterMode(): 'linear' | 'bicubic'
+  setFilterMode(mode: 'linear' | 'bicubic'): void
   destroy(): void
 }
 ```
@@ -98,7 +100,7 @@ Extract and de-interleave audio channels from AudioData into Float32Array[].
 Handles both planar (f32-planar) and interleaved (f32) audio formats automatically. Returns an array of Float32Array buffers, one per channel (e.g., [left, right] for stereo).
 
 - 📄 [Source](./src/audio/extract-channels.ts)
-- 🎮 [Demo](./demos/audio-channels-demo.html)
+- 🎮 [Demo](./demos/extract-channels.html)
 
 ```typescript
 function extractChannels(audioData: AudioData): Float32Array[]
@@ -119,8 +121,8 @@ for (let i = 0; i < leftChannel.length; i++) {
 #### **MP3Encoder**
 Encode AudioData to MP3 format using LameJS.
 
-- 📄 [Source](./src/audio/mp3-encoder.ts)
-- 🎮 [Demo](./demos/mp3-encoder-demo.html)
+- 📄 [Source](./src/audio/mp3.ts)
+- 🎮 [Demo](./demos/mp3-encoder.html)
 
 ```typescript
 class MP3Encoder {
@@ -132,16 +134,38 @@ class MP3Encoder {
 
   processBatch(audioData: AudioData): Uint8Array
   finish(): Blob
+  getEncodedSize(): number
 }
 ```
 
-### Demux
+#### **MP3Decoder**
+Decode MP3 files to raw PCM samples or AudioData objects.
+
+- 📄 [Source](./src/audio/mp3.ts)
+- 🎮 [Demo](./demos/mp3-decoder.html)
+
+```typescript
+class MP3Decoder {
+  constructor()
+
+  async initialize(): Promise<void>
+  async toSamples(mp3Buffer: ArrayBuffer): Promise<{
+    channels: Float32Array[],
+    sampleRate: number,
+    numberOfChannels: number
+  }>
+  async toAudioData(mp3Buffer: ArrayBuffer): Promise<AudioData[]>
+  async destroy(): Promise<void>
+}
+```
+
+### Demux/Mux
 
 #### **MP4Demuxer**
 Parse MP4 files and extract EncodedVideoChunk/EncodedAudioChunk objects using MP4Box.
 
 - 📄 [Source](./src/demux/mp4-demuxer.ts)
-- 🎮 [Demo](./demos/mp4-demuxer-demo.html)
+- 🎮 [Demo](./demos/mp4-demuxer.html)
 
 ```typescript
 class MP4Demuxer {
@@ -151,11 +175,14 @@ class MP4Demuxer {
   getTracks(): TrackData
   getVideoTrack(): VideoTrackData | undefined
   getAudioTrack(): AudioTrackData | undefined
+  getVideoDecoderConfig(): VideoDecoderConfig | undefined
+  getAudioDecoderConfig(): AudioDecoderConfig | undefined
   async extractSegment(
     trackType: 'audio' | 'video',
     startTime: number,
     endTime: number
   ): Promise<EncodedVideoChunk[] | EncodedAudioChunk[]>
+  getInfo(): MP4Info
 }
 ```
 
@@ -174,7 +201,7 @@ const videoChunks = await demuxer.extractSegment('video', 0, 10);
 
 These utilities require:
 - **WebCodecs API** - Chrome 94+, Edge 94+, Safari 17.4+ (some features)
-- **WebGPU** (optional) - Chrome 113+, Edge 113+, Safari 18+ (for GPUDrawImage)
+- **WebGPU** (optional) - Chrome 113+, Edge 113+, Safari 18+ (for GPUFrameRenderer)
 
 All utilities include compatibility checks and graceful degradation where applicable.
 
