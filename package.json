@@ -1,6 +1,6 @@
 {
   "name": "webcodecs-utils",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Utility functions for working with WebCodecs API",
   "homepage": "https://webcodecsfundamentals.org",
   "repository": {
