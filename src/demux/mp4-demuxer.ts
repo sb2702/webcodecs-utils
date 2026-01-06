@@ -223,6 +223,7 @@ function extractEncodedSegment(
       // Normalize time bounds
       const maxDuration = info.duration / info.timescale - DURATION_BUFFER;
       const normalizedEnd = Math.min(endTime || maxDuration, maxDuration);
+
   
       // Clear previous extraction options for all tracks
       for (const trackIdStr in info.tracks) {
@@ -236,7 +237,7 @@ function extractEncodedSegment(
           const sampleTime = sample.cts / sample.timescale;
   
           // Only include samples within the requested time range
-          if (sampleTime < normalizedEnd) {
+          if (sampleTime < normalizedEnd && sampleTime >= startTime) {
             chunks.push(
               new EncodedChunk({
                 type: sample.is_sync ? "key" : "delta",
@@ -285,6 +286,7 @@ function extractEncodedSegment(
   
       // Seek to start position
       const seekResult = mp4.seek(startTime, true);
+
   
       // Stream the file starting from seek position
       const contentReader = file

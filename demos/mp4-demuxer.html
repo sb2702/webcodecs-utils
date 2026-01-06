@@ -70,6 +70,18 @@
       status.textContent = 'Parsing MP4...';
       output.textContent = '';
 
+      const demuxer = new MP4Demuxer(file);
+
+      await demuxer.load();
+
+
+      console.log("Loaded demuxer");
+
+      const chunks = await demuxer.extractSegment('video', 300, 320);
+
+
+      console.log("cunks", chunks)
+
       // TODO: Implement MP4 demuxing
       // This will be populated with demo code
 
