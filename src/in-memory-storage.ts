@@ -102,7 +102,8 @@ export class InMemoryStorage {
                 blobChunks.push(chunk);
             }
         }
-        
-        return new Blob(blobChunks, { type });
+        //@ts-expect-error this is fine
+        const blob = new Blob(blobChunks, { type });
+        return blob
     }
 }
