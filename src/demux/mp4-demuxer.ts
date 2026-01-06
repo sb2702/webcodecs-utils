@@ -237,7 +237,7 @@ function extractEncodedSegment(
           const sampleTime = sample.cts / sample.timescale;
   
           // Only include samples within the requested time range
-          if (sampleTime < normalizedEnd && sampleTime >= startTime) {
+          if (sampleTime < normalizedEnd) {
             chunks.push(
               new EncodedChunk({
                 type: sample.is_sync ? "key" : "delta",
