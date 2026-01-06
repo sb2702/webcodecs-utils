@@ -10,6 +10,9 @@ export { MP3Encoder, MP3Decoder } from './audio/mp3';
 // Demux utilities
 export { MP4Demuxer, type TrackData, type VideoTrackData, type AudioTrackData } from './demux/mp4-demuxer';
 
+// Storage utilities
+export { InMemoryStorage } from './in-memory-storage';
+
 // Demo/Learning utilities (not recommended for production)
 export { getVideoChunks, getAudioChunks, demuxVideo, demuxAudio } from './demux/get-chunks';
 export { ExampleMuxer } from './demux/example-muxer';
