@@ -105,6 +105,16 @@
             const { done, value: frame } = await videoReader.read();
             if (done) break;
 
+            // Log first few frames to verify duration property
+            if (framesRendered < 5) {
+              console.log('VideoFrame:', {
+                timestamp: frame.timestamp,
+                duration: frame.duration,
+                codedWidth: frame.codedWidth,
+                codedHeight: frame.codedHeight,
+              });
+            }
+
             await renderer.drawImage(frame);
             frame.close();
 

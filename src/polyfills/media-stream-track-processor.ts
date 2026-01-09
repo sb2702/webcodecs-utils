@@ -50,6 +50,7 @@ class MediaStreamTrackProcessorPolyfill {
   private createVideoStream(track: MediaStreamTrack, settings: MediaTrackSettings): ReadableStream<VideoFrame> {
     let video: HTMLVideoElement;
     let last: number;
+    let lastDuration: number | undefined;
 
     const frameRate = settings.frameRate ?? 30;
 
@@ -74,8 +75,15 @@ class MediaStreamTrackProcessorPolyfill {
             continue;
           }
 
+          // Calculate duration based on actual frame timing
+          const duration = lastDuration ?? Math.round((now - last) * 1000);
+          lastDuration = duration;
+
           last = now;
-          controller.enqueue(new VideoFrame(video, { timestamp: last * 1000 }));
+          controller.enqueue(new VideoFrame(video, {
+            timestamp: last * 1000,
+            duration
+          }));
           break;
         }
       },
