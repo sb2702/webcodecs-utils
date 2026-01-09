@@ -41,7 +41,8 @@
 
   <div class="status">
     Status: <span id="status">Click start to begin</span><br>
-    Frames rendered: <span id="framesRendered">0</span><br>
+    Video frames rendered: <span id="framesRendered">0</span><br>
+    Audio samples received: <span id="audioSamples">0</span><br>
     Using: <span id="implementation">--</span>
   </div>
 
@@ -54,21 +55,24 @@
     const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
     const framesRenderedEl = document.getElementById('framesRendered');
+    const audioSamplesEl = document.getElementById('audioSamples');
     const implementationEl = document.getElementById('implementation');
 
     let framesRendered = 0;
+    let audioSamples = 0;
 
     startBtn.addEventListener('click', async () => {
       try {
         status.textContent = 'Requesting webcam access...';
 
-        // Get webcam stream
+        // Get webcam stream with both video and audio
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 1280, height: 720 },
-          audio: false,
+          audio: true,
         });
 
         const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
 
         // Check if native or polyfill
         const isNative = 'MediaStreamTrackProcessor' in self;
@@ -82,21 +86,52 @@
 
         status.textContent = 'Processing frames...';
 
-        // Create track processor
-        const processor = new MediaStreamTrackProcessor({ track: videoTrack });
-        const reader = processor.readable.getReader();
+        // Create video track processor
+        const videoProcessor = new MediaStreamTrackProcessor({ track: videoTrack });
+        const videoReader = videoProcessor.readable.getReader();
 
-        // Read and render frames
-        while (true) {
-          const { done, value: frame } = await reader.read();
-          if (done) break;
+        // Create audio track processor
+        const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
+        const audioReader = audioProcessor.readable.getReader();
 
-          await renderer.drawImage(frame);
-          frame.close();
+        // Process video frames
+        const processVideo = async () => {
+          while (true) {
+            const { done, value: frame } = await videoReader.read();
+            if (done) break;
 
-          framesRendered++;
-          framesRenderedEl.textContent = framesRendered;
-        }
+            await renderer.drawImage(frame);
+            frame.close();
+
+            framesRendered++;
+            framesRenderedEl.textContent = framesRendered;
+          }
+        };
+
+        // Process audio data
+        const processAudio = async () => {
+          while (true) {
+            const { done, value: audioData } = await audioReader.read();
+            if (done || audioSamples >= 10) break;
+
+            // Log audio data info
+            console.log('AudioData:', {
+              sampleRate: audioData.sampleRate,
+              numberOfFrames: audioData.numberOfFrames,
+              numberOfChannels: audioData.numberOfChannels,
+              timestamp: audioData.timestamp,
+            });
+
+            audioData.close();
+
+            audioSamples++;
+            audioSamplesEl.textContent = audioSamples;
+          }
+          audioReader.releaseLock();
+        };
+
+        // Run both processors in parallel
+        await Promise.all([processVideo(), processAudio()]);
 
       } catch (error) {
         console.error('Error:', error);

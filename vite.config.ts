@@ -29,11 +29,13 @@ export default defineConfig(({ command }) => {
 
   // Demo server configuration
   return {
+
     root: 'demos',
     publicDir: '../public',
     server: {
       port: 5173,
       open: true,
+      allowedHosts: true
     },
   };
 });
