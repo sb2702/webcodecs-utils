@@ -13,6 +13,9 @@ export { MP4Demuxer, type TrackData, type VideoTrackData, type AudioTrackData } 
 // Storage utilities
 export { InMemoryStorage } from './in-memory-storage';
 
+// Polyfills
+export { MediaStreamTrackProcessor } from './polyfills/media-stream-track-processor';
+
 // Demo/Learning utilities (not recommended for production)
 export { getVideoChunks, getAudioChunks, demuxVideo, demuxAudio } from './demux/get-chunks';
 export { ExampleMuxer } from './demux/example-muxer';
