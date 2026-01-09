@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaStreamTrackProcessor Polyfill Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    canvas {
+      border: 2px solid #333;
+      max-width: 100%;
+      display: block;
+      margin: 20px 0;
+      background: #000;
+    }
+    .status {
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>MediaStreamTrackProcessor Polyfill Demo</h1>
+  <p>Get webcam frames with MediaStreamTrackProcessor (works in Firefox with polyfill).</p>
+
+  <button id="startBtn">Start Webcam</button>
+
+  <div class="status">
+    Status: <span id="status">Click start to begin</span><br>
+    Frames rendered: <span id="framesRendered">0</span><br>
+    Using: <span id="implementation">--</span>
+  </div>
+
+  <canvas id="canvas" width="640" height="360"></canvas>
+
+  <script type="module">
+    import { MediaStreamTrackProcessor, GPUFrameRenderer } from '../src/index.ts';
+
+    const startBtn = document.getElementById('startBtn');
+    const canvas = document.getElementById('canvas');
+    const status = document.getElementById('status');
+    const framesRenderedEl = document.getElementById('framesRendered');
+    const implementationEl = document.getElementById('implementation');
+
+    let framesRendered = 0;
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        status.textContent = 'Requesting webcam access...';
+
+        // Get webcam stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: false,
+        });
+
+        const videoTrack = stream.getVideoTracks()[0];
+
+        // Check if native or polyfill
+        const isNative = 'MediaStreamTrackProcessor' in self;
+        implementationEl.textContent = isNative ? 'Native MediaStreamTrackProcessor' : 'Polyfill';
+
+        status.textContent = 'Initializing renderer...';
+
+        // Set up GPU renderer
+        const renderer = new GPUFrameRenderer(canvas);
+        await renderer.init();
+
+        status.textContent = 'Processing frames...';
+
+        // Create track processor
+        const processor = new MediaStreamTrackProcessor({ track: videoTrack });
+        const reader = processor.readable.getReader();
+
+        // Read and render frames
+        while (true) {
+          const { done, value: frame } = await reader.read();
+          if (done) break;
+
+          await renderer.drawImage(frame);
+          frame.close();
+
+          framesRendered++;
+          framesRenderedEl.textContent = framesRendered;
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        status.textContent = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
