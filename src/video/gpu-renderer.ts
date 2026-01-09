@@ -92,6 +92,17 @@ export class GPUFrameRenderer {
      * ```
      */
     async init() {
+      // Check for Linux + Firefox (WebGPU not supported)
+      const isLinux = navigator.platform.toLowerCase().includes('linux');
+      const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+
+      if (isLinux && isFirefox) {
+        console.log('GPUDrawImage: Linux + Firefox detected, using ImageBitmapRenderer');
+        this.initBitmapRenderer();
+        this.mode = 'bitmap';
+        return;
+      }
+
       // Try to initialize WebGPU first
       if (navigator.gpu) {
         try {
@@ -111,6 +122,8 @@ export class GPUFrameRenderer {
     }
   
     async initWebGPU(): Promise<boolean> {
+
+      
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) return false;
   
