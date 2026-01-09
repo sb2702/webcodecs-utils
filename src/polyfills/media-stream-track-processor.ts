@@ -2,7 +2,7 @@
 // Based on: https://jan-ivar.github.io/polyfills/mediastreamtrackprocessor.js
 // and https://github.com/moq-dev/moq/blob/main/js/hang/src/publish/video/polyfill.ts
 
-// AudioWorklet processor code as a string (will be loaded as a Blob URL)
+// AudioWorklet processor code as a string (will be loaded as a Blob URL), avoid worker loading issues in build systems
 const AUDIO_WORKLET_CODE = `
 class AudioCaptureProcessor extends AudioWorkletProcessor {
   sampleCount = 0;
