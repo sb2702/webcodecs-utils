@@ -5,6 +5,7 @@ export { GPUFrameRenderer } from './video/gpu-renderer';
 
 // Audio utilities
 export { extractChannels } from './audio/extract-channels';
+export { getSampleRate } from './audio/get-sample-rate';
 export { MP3Encoder, MP3Decoder } from './audio/mp3';
 
 // Demux utilities

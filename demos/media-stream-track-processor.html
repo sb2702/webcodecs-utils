@@ -49,7 +49,7 @@
   <canvas id="canvas" width="640" height="360"></canvas>
 
   <script type="module">
-    import { MediaStreamTrackProcessor, GPUFrameRenderer } from '../src/index.ts';
+    import { MediaStreamTrackProcessor, GPUFrameRenderer, getSampleRate } from '../src/index.ts';
 
     const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('canvas');
@@ -73,6 +73,11 @@
 
         const videoTrack = stream.getVideoTracks()[0];
         const audioTrack = stream.getAudioTracks()[0];
+
+        // Get actual sample rate (works in Firefox where getSettings() may not have it)
+        const sampleRate = await getSampleRate(audioTrack);
+        console.log('Actual sample rate:', sampleRate);
+        status.textContent = `Sample rate: ${sampleRate} Hz`;
 
         // Check if native or polyfill
         const isNative = 'MediaStreamTrackProcessor' in self;
