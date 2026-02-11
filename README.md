@@ -10,6 +10,8 @@ npm install webcodecs-utils
 
 ## Quick Start
 
+### Individual Utilities
+
 ```typescript
 import { getBitrate, GPUFrameRenderer, extractChannels, MP4Demuxer } from 'webcodecs-utils';
 
@@ -35,6 +37,35 @@ const decoder = new AudioDecoder({
 const demuxer = new MP4Demuxer(file);
 await demuxer.load();
 const videoChunks = await demuxer.extractSegment('video', 0, 10);
+```
+
+### Streaming Pipeline
+
+```typescript
+import {
+  SimpleDemuxer,
+  VideoDecodeStream,
+  VideoProcessStream,
+  VideoEncodeStream,
+  SimpleMuxer
+} from 'webcodecs-utils';
+
+// Build a composable streaming pipeline with automatic backpressure
+const demuxer = new SimpleDemuxer(file);
+await demuxer.load();
+
+const muxer = new SimpleMuxer({ video: 'avc' });
+
+await demuxer.videoStream()
+  .pipeThrough(new VideoDecodeStream(await demuxer.getVideoDecoderConfig()))
+  .pipeThrough(new VideoProcessStream(async (frame) => {
+    // Custom processing: upscaling, filters, etc.
+    return frame;
+  }))
+  .pipeThrough(new VideoEncodeStream(encoderConfig))
+  .pipeTo(muxer.videoSink());
+
+const blob = await muxer.finalize();
 ```
 
 ## Utilities
@@ -195,6 +226,117 @@ const videoTrack = demuxer.getVideoTrack();
 console.log(`Video: ${videoTrack.codec}, ${videoTrack.codedWidth}x${videoTrack.codedHeight}`);
 
 const videoChunks = await demuxer.extractSegment('video', 0, 10);
+```
+
+### Streaming Pipelines
+
+Build production-ready video processing pipelines using the Streams API with automatic backpressure management.
+
+- 📄 [Documentation](./src/streams/README.md)
+- 🎮 [Transcode Demo](./demos/transcode-pipeline.html)
+- 🎮 [AI Upscaling Demo](./demos/upscale-pipeline.html)
+
+#### **VideoDecodeStream**
+TransformStream that decodes EncodedVideoChunks into VideoFrames with automatic backpressure.
+
+```typescript
+class VideoDecodeStream extends TransformStream<EncodedVideoChunk, VideoFrame> {
+  constructor(
+    config: VideoDecoderConfig,
+    options?: {
+      highWaterMark?: number;        // default: 10
+      maxDecodeQueueSize?: number;   // default: 20
+    }
+  )
+}
+```
+
+#### **VideoEncodeStream**
+TransformStream that encodes VideoFrames into EncodedVideoChunks with automatic backpressure.
+
+```typescript
+class VideoEncodeStream extends TransformStream<
+  VideoFrame,
+  { chunk: EncodedVideoChunk; meta?: EncodedVideoChunkMetadata }
+> {
+  constructor(
+    config: VideoEncoderConfig,
+    options?: {
+      highWaterMark?: number;        // default: 10
+      maxEncodeQueueSize?: number;   // default: 20
+      keyFrameInterval?: number;     // default: 60
+    }
+  )
+}
+```
+
+#### **VideoProcessStream**
+TransformStream that applies a custom processing function to each VideoFrame.
+
+```typescript
+class VideoProcessStream extends TransformStream<VideoFrame, VideoFrame> {
+  constructor(
+    transformFn: (frame: VideoFrame) => Promise<VideoFrame> | VideoFrame,
+    options?: {
+      highWaterMark?: number;  // default: 5
+    }
+  )
+}
+```
+
+**Example - AI Upscaling:**
+```typescript
+import WebSR from '@websr/websr';
+
+const websr = new WebSR({ resolution, network, weights, gpu, canvas });
+
+const upscaleStream = new VideoProcessStream(async (frame) => {
+  await websr.render(frame);  // AI upscaling with WebGPU
+  return new VideoFrame(canvas, {
+    timestamp: frame.timestamp,
+    duration: frame.duration
+  });
+});
+
+// Use in pipeline
+await videoStream
+  .pipeThrough(new VideoDecodeStream(config))
+  .pipeThrough(upscaleStream)
+  .pipeThrough(new VideoEncodeStream(config))
+  .pipeTo(muxer.videoSink());
+```
+
+#### **SimpleDemuxer** ⚠️ Demo/Learning Only
+Simple wrapper around web-demuxer for easier usage in demos. For production, use [web-demuxer](https://github.com/bilibili/web-demuxer) or [MediaBunny](https://mediabunny.dev/) directly.
+
+```typescript
+class SimpleDemuxer {
+  constructor(file: File, options?: { wasmFilePath?: string })
+
+  async load(): Promise<void>
+  videoStream(startTime?: number): ReadableStream<EncodedVideoChunk>
+  audioStream(startTime?: number): ReadableStream<EncodedAudioChunk>
+  async getVideoDecoderConfig(): Promise<VideoDecoderConfig>
+  async getAudioDecoderConfig(): Promise<AudioDecoderConfig>
+  async getSegment(type: 'video' | 'audio', start: number, end: number): Promise<EncodedVideoChunk[] | EncodedAudioChunk[]>
+  async getMediaInfo(): Promise<MediaInfo>
+}
+```
+
+#### **SimpleMuxer** ⚠️ Demo/Learning Only
+Simple wrapper around MediaBunny's Output for easier muxing in demos. For production, use [MediaBunny](https://mediabunny.dev/) directly.
+
+```typescript
+class SimpleMuxer {
+  constructor(config: {
+    video?: 'avc' | 'hevc' | 'vp8' | 'vp9' | 'av1';
+    audio?: 'aac' | 'opus' | 'mp3' | 'vorbis' | 'flac';
+  })
+
+  videoSink(): WritableStream<{ chunk: EncodedVideoChunk; meta?: EncodedVideoChunkMetadata }>
+  audioSink(): WritableStream<EncodedAudioChunk>
+  async finalize(): Promise<Blob>
+}
 ```
 
 ## Browser Support
