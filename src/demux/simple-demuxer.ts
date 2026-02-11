@@ -1,8 +1,24 @@
 import { WebDemuxer } from "web-demuxer";
 
+// Track if warning has been shown
+let warningShown = false;
+
+function showDemoWarning() {
+  if (!warningShown) {
+    console.warn(
+      '⚠️  Demo/Learning Function: SimpleDemuxer is intended for demos and learning purposes only. ' +
+      'For production use, please use web-demuxer directly (https://github.com/bilibili/web-demuxer) ' +
+      'or MediaBunny (https://mediabunny.dev/) for more features.'
+    );
+    warningShown = true;
+  }
+}
+
 /**
  * Simple wrapper around web-demuxer for easier usage
  * Provides streaming and batch access to encoded chunks
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use web-demuxer or MediaBunny directly.
  */
 export class SimpleDemuxer {
   private demuxer: WebDemuxer;
@@ -10,6 +26,7 @@ export class SimpleDemuxer {
   private loaded = false;
 
   constructor(file: File, options?: { wasmFilePath?: string }) {
+    showDemoWarning();
     this.file = file;
     this.demuxer = new WebDemuxer({
       wasmFilePath: options?.wasmFilePath ||

@@ -10,15 +10,15 @@ export { MP3Encoder, MP3Decoder } from './audio/mp3';
 
 // Demux utilities
 export { MP4Demuxer, type TrackData, type VideoTrackData, type AudioTrackData } from './demux/mp4-demuxer';
-export { SimpleDemuxer } from './demux/simple-demuxer';
 
-// Mux utilities
-export { SimpleMuxer } from './mux/simple-muxer';
-
-// Streaming utilities
+// Streaming utilities (production-ready)
 export { VideoDecodeStream } from './streams/video-decode-stream';
 export { VideoEncodeStream } from './streams/video-encode-stream';
 export { VideoProcessStream } from './streams/video-process-stream';
+
+// Demo/Learning utilities for streaming pipelines (not recommended for production)
+export { SimpleDemuxer } from './demux/simple-demuxer';
+export { SimpleMuxer } from './mux/simple-muxer';
 
 // Storage utilities
 export { InMemoryStorage } from './in-memory-storage';

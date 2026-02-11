@@ -7,9 +7,25 @@ import {
   EncodedPacket,
 } from 'mediabunny';
 
+// Track if warning has been shown
+let warningShown = false;
+
+function showDemoWarning() {
+  if (!warningShown) {
+    console.warn(
+      '⚠️  Demo/Learning Function: SimpleMuxer is intended for demos and learning purposes only. ' +
+      'For production use, please use MediaBunny directly (https://mediabunny.dev/) ' +
+      'for more features and better control.'
+    );
+    warningShown = true;
+  }
+}
+
 /**
  * Simple wrapper around MediaBunny's Output for easier muxing
  * Provides WritableStream interface for use in pipelines
+ *
+ * **⚠️ Demo/Learning Only**: For production use, use MediaBunny directly.
  *
  * @example
  * ```typescript
@@ -33,6 +49,7 @@ export class SimpleMuxer {
     video?: 'avc' | 'hevc' | 'vp8' | 'vp9' | 'av1';
     audio?: 'aac' | 'opus' | 'mp3' | 'vorbis' | 'flac';
   }) {
+    showDemoWarning();
     const target = new BufferTarget();
     this.output = new Output({
       format: new Mp4OutputFormat(),
