@@ -6,12 +6,11 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
     "isolatedModules": true,
-    "noEmit": true,
     "declaration": true,
+    "declarationMap": true,
     "declarationDir": "./dist",
-    "emitDeclarationOnly": false,
+    "emitDeclarationOnly": true,
 
     /* Strict Type Checking */
     "strict": true,
